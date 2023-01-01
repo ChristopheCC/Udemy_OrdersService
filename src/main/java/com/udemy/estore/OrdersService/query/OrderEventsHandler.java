@@ -7,6 +7,7 @@ package com.udemy.estore.OrdersService.query;
 
 import com.udemy.estore.OrdersService.core.data.OrderEntity;
 import com.udemy.estore.OrdersService.core.data.OrdersRepository;
+import com.udemy.estore.OrdersService.core.events.OrderApprovedEvent;
 import com.udemy.estore.OrdersService.core.events.OrderCreatedEvent;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
@@ -30,5 +31,16 @@ public class OrderEventsHandler {
  
         this.ordersRepository.save(orderEntity);
     }
-    
+
+    @EventHandler
+    public void on(OrderApprovedEvent orderApprovedEvent) throws Exception {
+        OrderEntity orderEntity = ordersRepository.findByOrderId(orderApprovedEvent.getOrderId());
+
+        if (orderEntity == null){
+            return;
+        }
+        orderEntity.setOrderStatus(orderApprovedEvent.getOrderStatus());
+
+        this.ordersRepository.save(orderEntity);
+    }
 }

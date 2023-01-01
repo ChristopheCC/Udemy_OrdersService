@@ -5,7 +5,9 @@
  */
 package com.udemy.estore.OrdersService.command;
 
+import com.udemy.estore.OrdersService.command.commands.ApproveOrderCommand;
 import com.udemy.estore.OrdersService.command.commands.CreateOrderCommand;
+import com.udemy.estore.OrdersService.core.events.OrderApprovedEvent;
 import com.udemy.estore.OrdersService.core.events.OrderCreatedEvent;
 import com.udemy.estore.OrdersService.core.model.OrderStatus;
 import org.axonframework.commandhandling.CommandHandler;
@@ -45,6 +47,18 @@ public class OrderAggregate {
         this.addressId = orderCreatedEvent.getAddressId();
         this.quantity = orderCreatedEvent.getQuantity();
         this.orderStatus = orderCreatedEvent.getOrderStatus();
+    }
+
+    @CommandHandler
+    public void handle(ApproveOrderCommand approveOrderCommand) {
+        OrderApprovedEvent orderApprovedEvent = new OrderApprovedEvent(approveOrderCommand.getOrderId());
+
+        AggregateLifecycle.apply(orderApprovedEvent);
+    }
+
+    @EventSourcingHandler
+    public void on(OrderApprovedEvent orderApprovedEvent){
+        this.orderStatus = orderApprovedEvent.getOrderStatus();
     }
  
 
