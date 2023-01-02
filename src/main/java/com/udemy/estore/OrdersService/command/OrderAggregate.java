@@ -7,8 +7,10 @@ package com.udemy.estore.OrdersService.command;
 
 import com.udemy.estore.OrdersService.command.commands.ApproveOrderCommand;
 import com.udemy.estore.OrdersService.command.commands.CreateOrderCommand;
+import com.udemy.estore.OrdersService.command.commands.RejectOrderCommand;
 import com.udemy.estore.OrdersService.core.events.OrderApprovedEvent;
 import com.udemy.estore.OrdersService.core.events.OrderCreatedEvent;
+import com.udemy.estore.OrdersService.core.events.OrderRejectedEvent;
 import com.udemy.estore.OrdersService.core.model.OrderStatus;
 import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.eventsourcing.EventSourcingHandler;
@@ -60,6 +62,19 @@ public class OrderAggregate {
     public void on(OrderApprovedEvent orderApprovedEvent){
         this.orderStatus = orderApprovedEvent.getOrderStatus();
     }
+
+    @CommandHandler
+    public void handle(RejectOrderCommand rejectOrderCommand){
+        OrderRejectedEvent orderRejectedEvent = new OrderRejectedEvent(rejectOrderCommand.getOrderId(), rejectOrderCommand.getReason());
+
+        AggregateLifecycle.apply(orderRejectedEvent);
+    }
+
+    @EventSourcingHandler
+    public void on(OrderRejectedEvent orderRejectedEvent){
+        this.orderStatus = orderRejectedEvent.getOrderStatus();
+    }
+
  
 
 }
