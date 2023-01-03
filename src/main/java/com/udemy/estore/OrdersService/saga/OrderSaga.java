@@ -5,6 +5,8 @@ import com.udemy.estore.OrdersService.command.commands.RejectOrderCommand;
 import com.udemy.estore.OrdersService.core.events.OrderApprovedEvent;
 import com.udemy.estore.OrdersService.core.events.OrderCreatedEvent;
 import com.udemy.estore.OrdersService.core.events.OrderRejectedEvent;
+import com.udemy.estore.OrdersService.core.model.OrderSummary;
+import com.udemy.estore.OrdersService.query.FindOrderQuery;
 import com.udemy.estore.core.commands.CancelProductReservationCommand;
 import com.udemy.estore.core.commands.ProcessPaymentCommand;
 import com.udemy.estore.core.commands.ReserveProductCommand;
@@ -25,6 +27,7 @@ import org.axonframework.modelling.saga.SagaEventHandler;
 import org.axonframework.modelling.saga.SagaLifecycle;
 import org.axonframework.modelling.saga.StartSaga;
 import org.axonframework.queryhandling.QueryGateway;
+import org.axonframework.queryhandling.QueryUpdateEmitter;
 import org.axonframework.spring.stereotype.Saga;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +51,9 @@ public class OrderSaga {
 
     @Autowired
     private transient DeadlineManager deadlineManager;
+
+    @Autowired
+    private transient QueryUpdateEmitter queryUpdateEmitter;
 
     private final String PAYMENT_PROCESSING_TIMEOUT_DEADLINE = "payment-processing-deadline";
 
@@ -74,6 +80,9 @@ public class OrderSaga {
                                  CommandResultMessage<? extends  Object> commandResultMessage){
                 if (commandResultMessage.isExceptional()){
                     // start a compensating transaction
+                    RejectOrderCommand rejectOrderCommand = new RejectOrderCommand(orderCreatedEvent.getOrderId(),
+                            commandResultMessage.exceptionResult().getMessage());
+                    commandGateway.send(rejectOrderCommand);
                 }
             }
         });
@@ -177,6 +186,10 @@ public class OrderSaga {
     public void handle(OrderApprovedEvent orderApprovedEvent){
         LOGGER.info("Order is approved. Order Saga is complete for orderId : "+ orderApprovedEvent.getOrderId());
         //SagaLifecycle.end(); not required if we use the End Saga annotation
+        queryUpdateEmitter.emit(FindOrderQuery.class, query -> true,
+                new OrderSummary(orderApprovedEvent.getOrderId(),
+                        orderApprovedEvent.getOrderStatus(),
+                ""));
     }
 
     @SagaEventHandler(associationProperty = "orderId")
@@ -191,6 +204,11 @@ public class OrderSaga {
     @SagaEventHandler(associationProperty = "orderId")
     public void handle(OrderRejectedEvent orderRejectedEvent){
         LOGGER.info("Successfully rejected order with Id : " + orderRejectedEvent.getOrderId());
+
+        queryUpdateEmitter.emit(FindOrderQuery.class, query -> true,
+                new OrderSummary(orderRejectedEvent.getOrderId(),
+                        orderRejectedEvent.getOrderStatus(),
+                        orderRejectedEvent.getReason()));
     }
 
     @DeadlineHandler(deadlineName = PAYMENT_PROCESSING_TIMEOUT_DEADLINE)
